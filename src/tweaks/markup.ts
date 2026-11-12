@@ -55,6 +55,7 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
       max: num(d.max),
       step: num(d.step),
       soft: flag(d.soft),
+      snap: d.snap === "false" ? false : undefined,
       unit: d.unit,
     }),
     checkbox: (d) => (d.options ? { type: "radiogrid", ...choices(d) } : { value: d.checked === "true" }),
@@ -74,7 +75,14 @@ const DATA_VALUE: Partial<Record<SchemaObject["type"], (d: DOMStringMap, host: H
     }),
     buttongroup: (d) => ({ buttons: splitList(d.buttons).map((lab) => ({ label: lab })) }),
     separator: () => ({}),
-    number: (d) => ({ value: num(d.value), min: num(d.min), max: num(d.max), step: num(d.step), unit: d.unit }),
+    number: (d) => ({
+      value: num(d.value),
+      min: num(d.min),
+      max: num(d.max),
+      step: num(d.step),
+      snap: d.snap === "false" ? false : undefined,
+      unit: d.unit,
+    }),
     text: (d) => ({ value: d.value ?? "", placeholder: d.placeholder, rows: num(d.rows) }),
     fpsgraph: (d) => ({ label: d.label ?? "FPS" }),
     interval: (d) => ({

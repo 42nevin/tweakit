@@ -22,7 +22,11 @@ export const examples = [
       shows rule lines. <code>soft: true</code> lets a typed or scripted value run past
       <code>min</code>/<code>max</code>; dragging stays within them. <code>unit: "px"</code>
       puts a unit after the readout; the param stays the bare number. For a readout of
-      your own, see the next example.</p>`,
+      your own, see the next example.</p>
+      <p>Set <code>snap: false</code> on a slider or number to keep exact values, including
+      values between steps and computed floating-point values. The bounds stay exactly as
+      authored, and <code>step</code> remains the keyboard and scrub increment. Typed and
+      programmatic writes keep their precision; the default still uses the step grid.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;

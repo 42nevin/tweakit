@@ -36,6 +36,7 @@ interface NumSpec {
   min?: unknown;
   max?: unknown;
   step?: unknown;
+  snap?: boolean;
   soft?: boolean;
   row?: boolean;
   unit?: string;

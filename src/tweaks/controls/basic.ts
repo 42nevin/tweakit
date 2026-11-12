@@ -51,13 +51,14 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // A hard slider's range is its reachable grid: the ends move in to the first/last grid point,
   // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored
   // range.
-  if (!meta.soft) [min, max] = gridEnds(min, max, step);
-  const snap = (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
+  if (!meta.soft && meta.snap !== false) [min, max] = gridEnds(min, max, step);
+  const snap = meta.snap !== false && (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // a non-finite seed → min
   // A soft slider keeps an out-of-range default, as set() does; pull is the detent's tension offset read by render().
   let value = meta.soft && !snap ? seed : clamp(seed, min, max),
     pull = 0;
   const decimals = stepPrecision(step);
+  const digits = (v: number) => (meta.snap === false ? String(v) : v.toFixed(decimals));
 
   const wrap = el("div", "twk-slider-wrap");
   const track = el("div", "twk-slider");
@@ -82,7 +83,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         if (typeof s === "string" && s) return s;
       } catch {}
     }
-    return v.toFixed(decimals);
+    return digits(v);
   };
   track.append(hashes, fill, handle, labelEl, valueEl);
   wrap.append(track);
@@ -93,7 +94,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   track.setAttribute("aria-valuemin", String(min));
   track.setAttribute("aria-valuemax", String(max));
 
-  const q = (v: number) => roundToStep(v, min, step); // min/max sit on the grid, so a clamped value rounds inside
+  const q = (v: number) => (meta.snap === false ? v : roundToStep(v, min, step)); // min/max sit on the grid, so a clamped value rounds inside
   const marks = snap
     ? Array.from(
         { length: Math.max(0, Math.round((max - min) / step) - 1) },
@@ -367,7 +368,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     input.inputMode = parse ? "text" : "decimal";
     quietFocus(input); /* click-to-type stays ringless; Enter from the track rings it */
     // with a parse, the field edits the formatted text
-    input.value = parse ? show(q(value)) : q(value).toFixed(decimals);
+    input.value = parse ? show(q(value)) : digits(q(value));
     // read back: a text field drops line breaks
     const opened = input.value;
     input.style.width = opened.length + 1 + "ch";

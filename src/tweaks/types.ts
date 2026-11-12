@@ -129,6 +129,8 @@ export type SchemaObject =
       min?: number;
       max?: number;
       step?: number;
+      /** False keeps exact values; step remains the keyboard and scrub increment. */
+      snap?: boolean;
       soft?: boolean;
       unit?: string;
       /** Draws the readout from the value ("7:30 AM" for minutes of the day), in place of its
@@ -139,7 +141,17 @@ export type SchemaObject =
        *  returns anything but a finite number) leaves the value where it was. */
       parse?: (text: string) => number;
     }
-  | { type: "number"; value?: number; min?: number; max?: number; step?: number; soft?: boolean; unit?: string }
+  | {
+      type: "number";
+      value?: number;
+      min?: number;
+      max?: number;
+      step?: number;
+      /** False keeps exact values; step remains the keyboard and scrub increment. */
+      snap?: boolean;
+      soft?: boolean;
+      unit?: string;
+    }
   | { type: "checkbox"; value?: boolean }
   | { type: "list"; options: readonly Option[]; value?: string | number }
   | { type: "radiogrid" | "segmented"; options: readonly Option[]; value?: string | number; cols?: number }

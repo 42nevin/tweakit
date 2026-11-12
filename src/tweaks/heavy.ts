@@ -329,17 +329,14 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   const anchor = Number.isFinite(min) ? min : 0,
     decimals = stepPrecision(step); // min-anchored, like the slider
   // on-grid ends, so fit(fit(x)) === fit(x)
-  const [lo, hi] = gridEnds(
-    Number.isFinite(min) ? min : -Infinity,
-    Number.isFinite(max) ? max : Infinity,
-    step,
-    anchor,
-  );
+  const bounds: [number, number] = [Number.isFinite(min) ? min : -Infinity, Number.isFinite(max) ? max : Infinity];
+  const [lo, hi] = spec.snap === false ? bounds : gridEnds(...bounds, step, anchor);
   const fit = (val: number) => {
-    const n = roundToStep(val, anchor, step);
+    const n = spec.snap === false ? val : roundToStep(val, anchor, step);
     return spec.soft ? n : clamp(n, lo, hi);
   };
   let value = fit(Number.isFinite(+spec.value) ? +spec.value : 0);
+  const digits = () => (spec.snap === false ? String(value) : value.toFixed(decimals));
   const root = el("div", spec.row ? "twk-row" : "twk-field");
   const wrap = el("div", "twk-num-wrap");
   const grab = el("span", "twk-num-grab", ICON_GRIP);
@@ -349,7 +346,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   inp.type = "text";
   inp.inputMode = "decimal";
   inp.setAttribute("aria-label", spec.unit ? `${spec.label} (${spec.unit})` : spec.label);
-  inp.value = value.toFixed(decimals);
+  inp.value = digits();
   quietFocus(inp); // click-to-edit stays ringless; Tab rings
   wrap.append(grab, inp);
   if (spec.unit) wrap.append(txt("span", "twk-num-unit", spec.unit));
@@ -358,7 +355,7 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     val = +val;
     if (!Number.isFinite(val)) return;
     value = fit(val);
-    inp.value = value.toFixed(decimals);
+    inp.value = digits();
     if (fire && onChange) onChange(value);
   };
   // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
@@ -369,9 +366,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   inp.addEventListener("change", () => {
     const n = typed();
     if (Number.isFinite(n) && fit(n) !== value) set(n);
-    else inp.value = value.toFixed(decimals);
+    else inp.value = digits();
   });
-  escapeReverts(inp, () => value.toFixed(decimals));
+  escapeReverts(inp, digits);
   // ↑/↓ step off the half-typed value (a typed "4" then ↑ reads 5), the keyboard twin of the scrub.
   inp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") return inp.blur();

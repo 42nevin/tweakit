@@ -45,6 +45,7 @@ interface Meta {
   min?: number;
   max?: number;
   step?: number;
+  snap?: boolean;
   soft?: boolean;
   unit?: string;
   corners?: boolean;
@@ -142,12 +143,21 @@ const TYPED_META: Partial<Record<SchemaObject["type"], (v: any, depth: number, k
     max: v.max,
     step: v.step,
     soft: v.soft,
+    snap: v.snap,
     unit: unitOf(v.unit),
     format: fnOf(v.format),
     parse: fnOf(v.parse),
   }),
   // no step: the number control (heavy.ts) fits one to the default
-  number: (v) => ({ value: v.value ?? 0, min: v.min, max: v.max, step: v.step, soft: v.soft, unit: unitOf(v.unit) }),
+  number: (v) => ({
+    value: v.value ?? 0,
+    min: v.min,
+    max: v.max,
+    step: v.step,
+    snap: v.snap,
+    soft: v.soft,
+    unit: unitOf(v.unit),
+  }),
   checkbox: (v) => ({ value: !!v.value }),
   radiogrid: radiogridMeta,
   segmented: radiogridMeta,
