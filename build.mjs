@@ -100,7 +100,7 @@ try {
 } catch (e) {
   fail("tsc failed — the declarations would be wrong or partial:\n" + String(e.stdout || e.message || "").trimEnd());
 }
-// Keep only the declarations the public entry (core) reaches; the internal modules' would read
+// Keep only declarations reachable from public entry points; the internal modules' would read
 // as public API. Paths stay in readdir()'s OS-native form so the keep-set matches on every platform.
 {
   const keep = new Set();
@@ -110,7 +110,7 @@ try {
     for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g))
       await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
   };
-  await walk(path.join("tweaks", "core.d.ts"));
+  for (const entry of [path.join("tweaks", "single.d.ts"), "inspector.d.ts"]) await walk(entry);
   for (const f of await readdir(p("dist/types"), { recursive: true }))
     if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }

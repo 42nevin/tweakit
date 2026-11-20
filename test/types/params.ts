@@ -317,3 +317,10 @@ const annotated: Schema = { a: { type: "slidr", value: 1 } };
 const annotatedDeep: Schema = { f: { g: { type: "chekbox" } } };
 const annotatedOk: Schema = { a: { type: "slider", value: 1 }, f: { inner: 1, type: 3 }, g: { type: "checkbox" } };
 tweaks("Annotated", annotatedOk);
+
+// Resolve the packed public entries, not source paths: build must retain both roots and their dependencies.
+import { mountInspector as singleInspector } from "tweakit/single";
+import { mountInspector as splitInspector, type InspectorModel } from "tweakit/inspector";
+expect<Equal<typeof singleInspector, typeof splitInspector>>();
+declare const inspectorModel: InspectorModel;
+singleInspector(document.body, { onAction() {}, onChange() {} }).update(inspectorModel);
