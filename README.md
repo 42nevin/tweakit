@@ -142,3 +142,5 @@ Use `mountInspector` from `tweakit/inspector` or `tweakit/single` to display key
 groups of actions, readouts and real Tweakit controls. The view relays edits,
 drafts and gestures; the application supplies accepted values and action
 availability. The inspector does not use browser persistence or panel undo.
+
+With `onDraft`, number, slider and color editors report uncommitted text separately from values. To reconstruct a row, supply the reported numeric text or the whole reported color draft as its `draft`; color drafts carry their notation and channel texts. Closing a color popover or switching notation does not discard invalid text. Escape in a draft field discards that field; applying a color clears the property's draft. Pass no row draft to discard it from the host. Standalone `mountControl` uses the same `onDraft` / `setDraft` contract.

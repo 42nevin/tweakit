@@ -32,7 +32,7 @@ interface TabPage {
  *  optional; type / key / label are always set. `value` is the authored default in the control's own shape. */
 interface Meta {
   interaction?: {
-    draft?: (value: import("./types.js").NumericDraft | null) => void;
+    draft?: (value: import("./types.js").ControlDraft | null) => void;
     gesture?: (phase: import("./types.js").ControlGesturePhase) => void;
   };
   type: string;

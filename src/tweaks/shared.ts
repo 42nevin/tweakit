@@ -1,6 +1,6 @@
 /* Tweaks — shared building blocks: DOM + math helpers, theming, the popover shell and
  * the control registry. core.js and the lazy controls/*.js import what they each use. */
-import type { Control, Option, Panel, Theme, Strings } from "./types.js";
+import type { Control, ControlGesturePhase, NumericDraft, Option, Panel, Theme, Strings } from "./types.js";
 import type { Meta } from "./schema.js";
 
 // ── Internal types ──
@@ -31,7 +31,10 @@ type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
 // unit: muted suffix, also in the accessible name
 interface NumSpec {
-  interaction?: Meta["interaction"];
+  interaction?: {
+    draft?: (draft: NumericDraft | null) => void;
+    gesture?: (phase: ControlGesturePhase) => void;
+  };
   label: string;
   value?: unknown;
   min?: unknown;

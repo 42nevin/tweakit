@@ -87,6 +87,77 @@ for (const [name, load] of [
     b.destroy();
     host.remove();
   });
+
+  test(`managed color drafts restore Hex and channel text without changing the accepted color (${name})`, async (t) => {
+    const { mountControl } = await load();
+    const host = document.body.appendChild(document.createElement("div"));
+    const drafts = [],
+      changes = [];
+    const mount = () =>
+      mountControl(
+        host,
+        { type: "color", value: "#336699" },
+        {
+          onDraft: (draft) => drafts.push(draft),
+          onChange: (value) => changes.push(value),
+        },
+      );
+    const toggle = () => host.querySelector("button").click();
+    // jsdom supports the toolkit's inert property as an expando, not a reflected attribute.
+    const picker = () => [...document.querySelectorAll(".twk-color-pop")].find((pop) => !pop.inert);
+    t.after(() => {
+      if (host.querySelector('button[aria-expanded="true"]')) toggle();
+      host.remove();
+    });
+    const field = (label) => picker().querySelector(`input[aria-label="${label}"]`);
+    const type = (input, value) => {
+      input.focus();
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const mode = (value) => {
+      const select = picker().querySelector("select");
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    const a = mount();
+    await a.ready;
+    toggle();
+    type(field("Hex color"), "#12345");
+    assert.equal(drafts.at(-1)?.valid, false);
+    a.set("#4080C0", { silent: true });
+    assert.equal(a.get(), "#4080C0");
+    assert.equal(field("Hex color").value, "#12345");
+
+    mode("srgb");
+    type(field("R"), "-");
+    type(field("G"), ".");
+    const saved = drafts.at(-1);
+    assert.deepEqual(changes, []);
+    toggle();
+    a.destroy();
+    const b = mount();
+    b.setDraft(saved);
+    await b.ready;
+    toggle();
+    assert.equal(b.get(), "#336699", "restoring a notation and its text is not a color change");
+    assert.equal(field("R").value, "-");
+    assert.equal(field("G").value, ".");
+    assert.equal(field("R").getAttribute("aria-invalid"), "true");
+    mode("hex");
+    assert.equal(field("Hex color").value, "#12345", "formatting does not discard another field's draft");
+    key(field("Hex color"), { key: "Escape" });
+    assert.equal(field("Hex color").value, "#336699");
+    mode("srgb");
+    assert.equal(field("G").value, ".");
+    type(field("G"), "120");
+    assert.equal(drafts.at(-1), null, "an applied color replaces all of this color's draft text");
+    assert.deepEqual(changes, ["rgb(51 120 153)"]);
+    assert.equal(field("R").value, "51");
+    toggle();
+    b.destroy();
+  });
 }
 
 test("a captured slider delivers updates and one terminal event, even when detached", async () => {

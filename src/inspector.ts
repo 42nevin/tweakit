@@ -1,14 +1,21 @@
 /* A presentation for host-owned inspection state. Rows have opaque keys, never
  * a document/runtime address. Only the caller interprets them or accepts edits. */
 import { mountControl } from "./tweaks/core.js";
-import type { ControlGesturePhase, MountedControl, NumericDraft, SchemaObject, Strings } from "./tweaks/types.js";
+import type {
+  ControlDraft,
+  ControlGesturePhase,
+  DraftInput,
+  MountedControl,
+  SchemaObject,
+  Strings,
+} from "./tweaks/types.js";
 
 type Widget = Extract<SchemaObject, { type: "number" | "slider" | "color" }> & { label: string };
 export type InspectorRow =
   | { kind: "action"; id: string; label: string; detail?: string; pressed?: boolean; disabled?: boolean }
   | { kind: "fact"; id: string; label: string; value: string }
   | { kind: "status"; id: string; text: string }
-  | { kind: "control"; id: string; schema: Widget; draft?: string; holdValue?: boolean };
+  | { kind: "control"; id: string; schema: Widget; draft?: DraftInput; holdValue?: boolean };
 export interface InspectorModel {
   title: string;
   groups: readonly { id: string; label: string; rows: readonly InspectorRow[] }[];
@@ -17,7 +24,7 @@ export interface InspectorModel {
 export interface InspectorOptions {
   onAction(id: string): void;
   onChange(id: string, value: unknown): void;
-  onDraft?(id: string, draft: NumericDraft | null): void;
+  onDraft?(id: string, draft: ControlDraft | null): void;
   onGesture?(id: string, phase: ControlGesturePhase): void;
 }
 export interface InspectorView {

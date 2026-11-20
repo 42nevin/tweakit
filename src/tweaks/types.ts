@@ -946,7 +946,7 @@ export interface Control {
   el: HTMLElement;
   set(value: unknown): void;
   get(): unknown;
-  setDraft?(text: string | null): void;
+  setDraft?(draft: DraftInput | null): void;
   /** Release any loop the control owns (the monitor's poll, the FPS graph's rAF). Only
    *  the live controls supply it; the panel calls it from `destroy()`. */
   destroy?(): void;
@@ -958,11 +958,20 @@ export interface Control {
   range?: [number, number] | Record<string, [number, number]>;
 }
 
-/** Raw numeric input is not a value until committed. */
+/** Raw input in a single field; not a value until committed. */
 export interface NumericDraft {
   text: string;
   valid: boolean;
 }
+/** Raw text in a color property's notation-specific inputs. Channel zero is the Hex field in hex mode. */
+export interface ColorDraft {
+  readonly mode: ColorMode;
+  readonly fields: Readonly<Partial<Record<ColorMode, Readonly<Record<number, NumericDraft>>>>>;
+  readonly valid: boolean;
+}
+export type ControlDraft = NumericDraft | ColorDraft;
+/** Restore plain text for number/slider or the reported color draft for color. */
+export type DraftInput = string | ColorDraft;
 export type ControlGesturePhase = "start" | "end";
 
 /** Options for `mountControl(host, value, opts?)` — one control, no panel. */
@@ -974,8 +983,8 @@ export interface MountOptions {
   label?: string;
   /** Fired with the new value whenever the control changes — by hand or through `set()`. */
   onChange?: (value: unknown, key: string) => void;
-  /** Opt in to preserving raw text in number/slider editors. Null reports commit or explicit discard. */
-  onDraft?: (draft: NumericDraft | null, key: string) => void;
+  /** Opt in to preserving raw text in number, slider and color editors. Null reports commit or explicit discard. */
+  onDraft?: (draft: ControlDraft | null, key: string) => void;
   /** Pointer gesture boundaries for number, slider and color. Updates arrive through onChange.
    * End runs on release, capture loss or destruction; keyboard edits are discrete. */
   onGesture?: (phase: ControlGesturePhase, key: string) => void;
@@ -995,8 +1004,8 @@ export interface MountedControl {
   /** Apply a value — the control updates AND `onChange` fires (when the value actually
    *  changed). Before `ready`, the value is queued and applied once the control builds. */
   set(value: unknown, options?: SetOptions): void;
-  /** Restore or clear a number/slider draft without committing it or calling onDraft. */
-  setDraft(text: string | null): void;
+  /** Restore or clear a draft without committing it or calling onDraft. */
+  setDraft(draft: DraftInput | null): void;
   /** The current value (the queued or schema value before `ready`; `undefined` for a
    *  valueless control such as a button). */
   get(): unknown;

@@ -15,6 +15,7 @@ import type {
   ColorPicker,
   ColorMode,
   Control,
+  DraftInput,
   Get,
   ControlGesturePhase,
 } from "./types.js";
@@ -62,7 +63,7 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     parked: unknown,
     queued = false,
     silent = false,
-    draft: string | null | undefined;
+    draft: DraftInput | null | undefined;
   let gesturing = false;
   const gesture = (phase: ControlGesturePhase) => {
     if ((phase === "start") === gesturing) return;
@@ -121,10 +122,12 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
         queued = true;
       }
     },
-    setDraft: (text) => {
+    setDraft: (next) => {
       if (destroyed) return;
-      draft = text;
-      ctrl?.setDraft?.(text);
+      if (next !== null && (meta.type === "color" ? typeof next !== "object" : typeof next !== "string"))
+        throw new TypeError(`[tweaks] mountControl: draft does not match the "${meta.type}" control`);
+      draft = next;
+      ctrl?.setDraft?.(next);
     },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
     // onLive listeners release on their next event by this mark

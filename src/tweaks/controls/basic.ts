@@ -455,7 +455,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   return {
     el: wrap,
     set: (v: number | string) => set(v, false),
-    setDraft: (text) => {
+    setDraft(text: string | null) {
       if (!draft) return;
       if (text !== null && !restoreDraft) openEditor(false);
       restoreDraft?.(text);

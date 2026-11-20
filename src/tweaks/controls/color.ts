@@ -25,7 +25,7 @@ import {
 import type { Vec3, Space, Gamut } from "../../wide-gamut.js";
 import type { OnChange, NumField } from "../shared.js";
 import type { Meta } from "../schema.js";
-import type { Control, ColorMode } from "../types.js";
+import type { ColorDraft, ColorMode, Control, NumericDraft } from "../types.js";
 
 /** A parsed color: OKLCH plus alpha. */
 export type Oklcha = [number, number, number, number];
@@ -34,6 +34,7 @@ export interface PickerOptions {
   value?: string;
   mode?: ColorMode;
   onMode?: () => void;
+  onDraft?: (draft: ColorDraft | null) => void;
   gesture?: NonNullable<Meta["interaction"]>["gesture"];
 }
 /** The picker body's handle — a Control plus the mode and trigger-painting surface. */
@@ -41,6 +42,7 @@ export interface PickerBody extends Control {
   el: HTMLDivElement;
   set(v: string): void;
   get(): string;
+  setDraft(draft: ColorDraft | null): void;
   mode(): ColorMode;
   setMode(m: ColorMode): void;
   reflow(): void;
@@ -423,6 +425,8 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   let paintedHue = NaN,
     chromaCurve: Float64Array | null = null,
     chanFields: NumField[] = [];
+  let hexField: HTMLInputElement | null = null;
+  let draft: ColorDraft | null = null;
   let hueRingH = NaN,
     hueRingBg = ""; // the hue ring depends only on H; cached
   const colorStr = () => raw ?? flavored(serialize([L, C, H], mode, A), flavor, [L, C, H], A);
@@ -615,17 +619,48 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     hueThumb.style.background = hueRingBg;
   };
   const hexText = () => serialize([L, C, H], "hex", A);
+  const paintHex = () => {
+    if (!hexField) return;
+    const field = draft?.fields.hex?.[0];
+    const text = field?.text ?? hexText();
+    if (hexField.value !== text) hexField.value = text;
+    if (field) hexField.setAttribute("aria-invalid", String(!field.valid));
+    else hexField.removeAttribute("aria-invalid");
+  };
+  const paintDraft = () => {
+    paintHex();
+    chanFields.forEach((field, i) => field.setDraft?.(draft?.fields[mode]?.[i]?.text ?? null));
+  };
+  const setDraft = (next: ColorDraft | null) => {
+    if (!meta.onDraft || draft === next) return;
+    draft = next;
+    if (draft && mode !== draft.mode) remode(draft.mode, true);
+    else paintDraft();
+  };
+  const noteField = (notation: ColorMode, i: number, field: NumericDraft | null) => {
+    const fields = { ...draft?.fields };
+    const channels = { ...fields[notation] };
+    if (field) channels[i] = field;
+    else delete channels[i];
+    if (Object.keys(channels).length) fields[notation] = channels;
+    else delete fields[notation];
+    const groups = Object.values(fields);
+    draft = groups.length
+      ? { mode, fields, valid: groups.every((group) => Object.values(group).every((input) => input.valid)) }
+      : null;
+    if (notation === "hex") paintHex();
+    meta.onDraft(draft);
+  };
   const refresh = () => {
     // sRGB and P3 are names
     const g = gamutLabel([L, C, H], mode);
     gamut2.textContent = g === "wide" ? tr("wide", "wide") : g;
     if (mode === "hex") {
-      const hx = channels.querySelector<HTMLInputElement>(".twk-color-chan-input");
-      if (hx && activeIn(hx) !== hx) hx.value = hexText();
+      if (hexField && (meta.onDraft || activeIn(hexField) !== hexField)) paintHex();
     } else {
       const vals = channelValues([L, C, H], mode);
       chanFields.forEach((f, i) => {
-        if (!f.el.contains(activeIn(f.el))) f.set(vals[i]);
+        if (meta.onDraft || !f.el.contains(activeIn(f.el))) f.set(vals[i]);
       });
     }
   };
@@ -644,6 +679,10 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   };
   // an edit writes the picker's own notation
   const commit = (repaint: boolean) => {
+    if (draft) {
+      setDraft(null);
+      meta.onDraft(null);
+    }
     raw = null;
     sync(repaint);
     emit();
@@ -652,11 +691,13 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   const renderChannels = () => {
     channels.replaceChildren();
     chanFields = [];
+    hexField = null;
+    const notation = mode;
     if (mode === "hex") {
       channels.classList.add("twk-color-channels--hex");
       const wrap = el("div", "twk-color-chan");
       // select all: you replace a color, not a digit
-      const inp = el("input", "twk-color-chan-input");
+      const inp = (hexField = el("input", "twk-color-chan-input"));
       inp.type = "text";
       inp.spellcheck = false;
       inp.setAttribute("aria-label", tr("hex", "Hex color"));
@@ -674,24 +715,45 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       inp.addEventListener("keydown", (e) => {
         if (e.key === "Enter") inp.blur();
       });
-      escapeReverts(inp, hexText);
+      if (meta.onDraft) {
+        inp.addEventListener("input", () =>
+          noteField("hex", 0, { text: inp.value, valid: HEX_RE.test(inp.value.trim()) }),
+        );
+        inp.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape" || !draft?.fields.hex?.[0]) return;
+          e.preventDefault();
+          e.stopPropagation();
+          noteField("hex", 0, null);
+        });
+      } else escapeReverts(inp, hexText);
       wrap.append(txt("span", "twk-color-chan-label", "HEX"), inp);
       channels.append(wrap);
     } else {
       // The same field as Point/Spring, so the grab handle works for color values too.
       channels.classList.remove("twk-color-channels--hex");
-      const vals = channelValues([L, C, H], mode);
-      MODE_CHANNELS[mode].forEach((ch, i) => {
-        const f = numField({ label: ch.k, value: vals[i], min: ch.min, max: ch.max, step: ch.step }, (v) => {
-          [L, C, H] = withChannel([L, C, H], mode, i, clamp(v, ch.min, ch.max));
-          commit(true);
-        });
+      const vals = channelValues([L, C, H], notation);
+      MODE_CHANNELS[notation].forEach((ch, i) => {
+        const f = numField(
+          {
+            label: ch.k,
+            value: vals[i],
+            min: ch.min,
+            max: ch.max,
+            step: ch.step,
+            interaction: meta.onDraft && { draft: (field) => noteField(notation, i, field) },
+          },
+          (v) => {
+            [L, C, H] = withChannel([L, C, H], notation, i, clamp(v, ch.min, ch.max));
+            commit(true);
+          },
+        );
         f.el.addEventListener("focusout", refresh); // as the hex field: catch up on the way out
         chanFields.push(f);
         channels.append(f.el);
       });
     }
     refresh();
+    if (meta.onDraft) paintDraft();
   };
 
   const areaXY = (e: PointerEvent) => boxFrac(e, area);
@@ -772,9 +834,9 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   // undo and rewrite a gradient's stored stop strings. The dropdown also repaints the host's trigger (meta.onMode);
   // setMode is the host pushing a mode in, so it fires neither.
   // The channel fields are rebuilt for the new mode, after the build: under the picker's own words again.
-  const remode = (m: ColorMode) => {
+  const remode = (m: ColorMode, keepValue = false) => {
+    raw = keepValue ? colorStr() : null;
     mode = m;
-    raw = null;
     flavor = null;
     showMode();
     using(tr.s, renderChannels);
@@ -784,7 +846,11 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
   // the dropdown holds EDIT_MODES and the kept flavor
   modeSel.addEventListener("change", () => {
     if (modeSel.value === "kept") return;
-    remode(modeSel.value as ColorMode);
+    remode(modeSel.value as ColorMode, !!meta.onDraft);
+    if (draft) {
+      draft = { ...draft, mode };
+      meta.onDraft(draft);
+    }
     meta.onMode && meta.onMode();
   });
 
@@ -802,9 +868,9 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
         return;
       }
       const ae = activeIn(root) as HTMLElement;
-      if (ae && root.contains(ae) && ae.matches("input")) ae.blur();
+      if (!meta.onDraft && ae && root.contains(ae) && ae.matches("input")) ae.blur();
       [L, C, H, A] = parseColor(v);
-      const m = seeded ? null : notationOf(v);
+      const m = seeded || meta.onDraft ? null : notationOf(v);
       if (m && m !== mode) remode(m);
       flavor = m ? flavorOf(v) : null;
       showMode();
@@ -812,6 +878,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
       sync(true);
     },
     get: () => colorStr(),
+    setDraft,
     // The gradient reads the mode to choose its blend space and re-points it on a stored ramp.
     mode: () => mode,
     setMode: (m: ColorMode) => {
@@ -845,6 +912,7 @@ function createColor(meta: Meta, onChange: OnChange): Control {
       value: meta.value,
       mode: meta.mode as ColorMode,
       onMode: () => paintTrigger(),
+      onDraft: meta.interaction?.draft,
       gesture: meta.interaction?.gesture,
     },
     (c) => {
@@ -866,6 +934,10 @@ function createColor(meta: Meta, onChange: OnChange): Control {
       paintTrigger();
     },
     get: () => body.get(),
+    setDraft(draft: ColorDraft | null) {
+      body.setDraft(draft);
+      paintTrigger();
+    },
   };
 }
 
