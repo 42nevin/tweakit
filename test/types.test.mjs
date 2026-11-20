@@ -15,7 +15,7 @@ test("params are typed from the schema", async () => {
     "--ignoreConfig",
     "--noEmit",
     "--strict",
-    "--skipLibCheck",
+    "--noUncheckedSideEffectImports",
     "--target",
     "ES2020",
     "--module",

@@ -19,6 +19,4 @@ import "./controls/motion.js";
 import "./controls/point.js";
 import "./controls/plot.js";
 
-export * from "./core.js";
-export { mountInspector } from "../inspector.js";
-export type * from "../inspector.js";
+export * from "./single-api.js";

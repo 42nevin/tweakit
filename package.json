@@ -43,7 +43,7 @@
       "default": "./dist/tweaks/core.js"
     },
     "./single": {
-      "types": "./dist/types/tweaks/single.d.ts",
+      "types": "./dist/types/tweaks/single-api.d.ts",
       "import": "./dist/tweaks.js",
       "default": "./dist/tweaks.js"
     },

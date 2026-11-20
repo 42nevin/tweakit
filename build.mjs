@@ -110,7 +110,7 @@ try {
     for (const m of (await readFile(p("dist/types", rel), "utf8")).matchAll(/from "(\.[^"]+)"/g))
       await walk(path.join(path.dirname(rel), m[1].replace(/\.js$/, ".d.ts")));
   };
-  for (const entry of [path.join("tweaks", "single.d.ts"), "inspector.d.ts"]) await walk(entry);
+  for (const entry of [path.join("tweaks", "single-api.d.ts"), "inspector.d.ts"]) await walk(entry);
   for (const f of await readdir(p("dist/types"), { recursive: true }))
     if (f.endsWith(".d.ts") && !keep.has(f)) await rm(p("dist/types", f));
 }
