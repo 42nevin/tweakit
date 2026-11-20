@@ -49,12 +49,19 @@ const splitBuild = await esbuild.build({
   metafile: true,
 });
 
-// 1b) tweakit/auto → dist/tweaks/auto.js: core re-exported, plus enhance(document) on load. Unbundled, so it imports
-// ./core.js as written and leaves the split build's chunks as they are.
+// 1b) Optional entries import ./core.js as written, leaving the split core chunks unchanged.
 await esbuild.build({
   ...JS,
   entryPoints: [p("src/tweaks/auto.ts")],
   outfile: p("dist/tweaks/auto.js"),
+  bundle: false,
+});
+
+// Optional inspector entry keeps its separate, side-effect-free view out of the split core.
+await esbuild.build({
+  ...JS,
+  entryPoints: [p("src/inspector.ts")],
+  outfile: p("dist/inspector.js"),
   bundle: false,
 });
 

@@ -16,6 +16,7 @@ import type {
   ColorMode,
   Control,
   Get,
+  ControlGesturePhase,
 } from "./types.js";
 import type { Meta } from "./schema.js";
 import type { PickerBody, PickerOptions } from "./controls/color.js";
@@ -59,12 +60,26 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     destroyed = false,
     last: unknown = meta.value,
     parked: unknown,
-    queued = false;
+    queued = false,
+    silent = false,
+    draft: string | null | undefined;
+  let gesturing = false;
+  const gesture = (phase: ControlGesturePhase) => {
+    if ((phase === "start") === gesturing) return;
+    gesturing = phase === "start";
+    opts.onGesture?.(phase, key);
+  };
+  if (opts.onDraft || opts.onGesture) {
+    meta.interaction = {
+      draft: opts.onDraft && ((value) => opts.onDraft(value, key)),
+      gesture: opts.onGesture && gesture,
+    };
+  }
   // Gated the way the panel gates notify(): a same-value set() stays silent instead of echoing.
   const emit = (v: unknown) => {
     if (!valueChanged(last, v)) return;
     last = v;
-    opts.onChange && opts.onChange(v, key);
+    if (!silent) opts.onChange?.(v, key);
   };
   const build = () => {
     if (destroyed) return; // destroy() before the chunk landed — nothing to mount
@@ -88,23 +103,33 @@ export function mountControl(host: Element, value: SchemaValue, opts: MountOptio
     if (queued) {
       ctrl.set(parked);
       emit(ctrl.get());
+      silent = false;
     }
+    if (draft !== undefined) ctrl.setDraft?.(draft);
   };
   const handle: MountedControl = {
     el: iso.box,
-    set: (v) => {
+    set: (v, options) => {
       if (destroyed || !valued) return;
+      silent = options?.silent === true;
       if (ctrl) {
         ctrl.set(v);
         emit(ctrl.get());
+        silent = false;
       } else {
         parked = v;
         queued = true;
       }
     },
+    setDraft: (text) => {
+      if (destroyed) return;
+      draft = text;
+      ctrl?.setDraft?.(text);
+    },
     get: () => (!valued ? undefined : ctrl ? ctrl.get() : queued ? parked : meta.value),
     // onLive listeners release on their next event by this mark
     destroy: () => {
+      gesture("end");
       destroyed = true;
       if (ctrl && typeof ctrl.destroy === "function") ctrl.destroy();
       root.dataset.twkDestroyed = "";

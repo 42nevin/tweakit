@@ -105,3 +105,7 @@ until the fix lands; `TW_STRESS_UNSKIP=1` runs those seeds anyway, to check that
 Open an [issue](https://github.com/ryankiley/tweakit/issues) with a minimal schema
 that reproduces it and the browser/version. For security issues, see
 [SECURITY.md](SECURITY.md) instead.
+
+The host-owned inspector view is optional: the split build exposes it through
+`tweakit/inspector`, so ordinary `tweakit` consumers do not download its UI.
+`tweakit/single` includes it in the same self-contained document bundle.

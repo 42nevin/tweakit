@@ -34,6 +34,7 @@ export interface PickerOptions {
   value?: string;
   mode?: ColorMode;
   onMode?: () => void;
+  gesture?: NonNullable<Meta["interaction"]>["gesture"];
 }
 /** The picker body's handle — a Control plus the mode and trigger-painting surface. */
 export interface PickerBody extends Control {
@@ -700,7 +701,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     C = fx * ceilAt(L);
     commit(false);
   };
-  grabSurface(area, setArea);
+  grabSurface(area, setArea, meta.gesture);
   // Arrows move the thumb, not the raw channels: chroma steps as a fraction of its row, so a
   // vertical step stays in gamut. Home/End mean nothing for a 2D point and are swallowed so they don't scroll the page.
   const say = sayWhenKeysStop(area);
@@ -736,7 +737,7 @@ function createPickerBody(meta: PickerOptions, onChange: (c: string) => void): P
     bar.setAttribute("aria-label", label);
     bar.setAttribute("aria-valuemin", "0");
     bar.setAttribute("aria-valuemax", String(max));
-    grabSurface(bar, (e) => put(boxFrac(e, bar)[0] * max));
+    grabSurface(bar, (e) => put(boxFrac(e, bar)[0] * max), meta.gesture);
     bar.addEventListener("keydown", (e) => {
       const nv = rangeStep(e, get(), step, 0, max);
       if (nv == null) return;
@@ -840,7 +841,12 @@ function createColor(meta: Meta, onChange: OnChange): Control {
     valueEl.textContent = body.valueText();
   };
   const body = createPickerBody(
-    { value: meta.value, mode: meta.mode as ColorMode, onMode: () => paintTrigger() },
+    {
+      value: meta.value,
+      mode: meta.mode as ColorMode,
+      onMode: () => paintTrigger(),
+      gesture: meta.interaction?.gesture,
+    },
     (c) => {
       paintTrigger();
       onChange(c);

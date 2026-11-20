@@ -135,3 +135,10 @@ Contributions welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Report security i
 
 Inspired by Tweakpane and dialkit. Toolbar and control icons from Hugeicons; see
 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+### Host-owned inspectors
+
+Use `mountInspector` from `tweakit/inspector` or `tweakit/single` to display keyed
+groups of actions, readouts and real Tweakit controls. The view relays edits,
+drafts and gestures; the application supplies accepted values and action
+availability. The inspector does not use browser persistence or panel undo.

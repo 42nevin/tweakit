@@ -1,9 +1,9 @@
 # Tweakit for coding agents
 
-Tweakit is a dependency-free, code-split, real-time parameter panel for the browser. Hand `tweaks(name, schema)` a plain object and it builds a live control for each value: sliders, toggles, lists, a wide-gamut color picker, gradient, shadow, motion and curve editors, folders and tabs. This file ships inside the npm package, so `node_modules/tweakit/AGENTS.md` always matches the installed version; prefer it over anything you remember about tweakit. The same guide, stamped with its version, is at https://ryankiley.github.io/tweakit/AGENTS.md, and the docs as Markdown start at https://ryankiley.github.io/tweakit/llms.txt.
+Tweakit is a dependency-free, code-split, real-time parameter panel for the browser. Hand `tweaks(name, schema)` a plain object and it builds a live control for each value: sliders, toggles, lists, a wide-gamut color picker, gradient, shadow, motion and curve editors, folders and tabs. This file ships inside the npm package, so `node_modules/tweakit/AGENTS.md` always matches the installed version; prefer it over anything you remember about tweakit. The Markdown docs start at https://ryankiley.github.io/tweakit/llms.txt.
 
 - Package `tweakit` on npm. Source: https://github.com/ryankiley/tweakit. Docs: https://ryankiley.github.io/tweakit/
-- Every option is documented in `node_modules/tweakit/dist/types/tweaks/types.d.ts`.
+- See the package’s TypeScript declarations.
 
 ## Workflow
 
@@ -155,6 +155,8 @@ The panel is dark by default and follows the system scheme; `data-twk-scheme="li
 - It has no production switch. Gate the panel in your code, for example behind `import.meta.env.DEV`.
 - It is not a framework component. In React, Vue, Svelte or Solid, create the panel once in a mount effect, append `panel.el` to a ref, set state in `panel.on()`, and `panel.destroy()` on unmount.
 - `params` is a plain object, updated in place: subscribe with `on()`.
+
+Optional host-owned inspector views: see the [README](README.md#host-owned-inspectors).
 
 ## Example requests
 

@@ -166,14 +166,22 @@ function dragGesture(
   node.addEventListener("lostpointercapture", end); // capture lost mid-drag (popover unmounting) ends it too
 }
 // Press-drag flagging .is-grabbing on the surface for the gesture's run (the thumb-lift CSS keys off it).
-const grabSurface = (surface: HTMLElement, set: (e: PointerEvent) => void) =>
+const grabSurface = (
+  surface: HTMLElement,
+  set: (e: PointerEvent) => void,
+  gesture?: NonNullable<Meta["interaction"]>["gesture"],
+) =>
   dragGesture(surface, {
     onDown: (e) => {
+      gesture?.("start");
       surface.classList.add("is-grabbing");
       set(e);
     },
     onMove: set,
-    onEnd: () => surface.classList.remove("is-grabbing"),
+    onEnd: () => {
+      surface.classList.remove("is-grabbing");
+      gesture?.("end");
+    },
   });
 // Pointer position inside a box as [x, y] fractions in 0–1.
 const boxFrac = (e: MouseEvent, box: Element): [number, number] => {
@@ -276,6 +284,7 @@ function attachScrub(
   read: () => number,
   apply: (v: number) => void,
   text: () => string,
+  gesture?: NonNullable<Meta["interaction"]>["gesture"],
 ) {
   let downX = 0,
     downV = 0,
@@ -288,6 +297,7 @@ function attachScrub(
       downX = e.clientX;
       downV = read();
       curK = 1;
+      gesture?.("start");
       grab.classList.add("is-dragging");
       const br = wrap.getBoundingClientRect();
       gd.show(e.clientX, br.top + br.height / 2, br.left + br.width / 2, wrap);
@@ -306,6 +316,7 @@ function attachScrub(
     onEnd: () => {
       grab.classList.remove("is-dragging");
       gd.hide();
+      gesture?.("end");
     },
   });
 }
@@ -351,24 +362,52 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
   wrap.append(grab, inp);
   if (spec.unit) wrap.append(txt("span", "twk-num-unit", spec.unit));
   root.append(txt("span", spec.row ? "twk-row-label" : "twk-field-label", spec.label), wrap);
+  const draft = spec.interaction?.draft;
+  let raw: string | null = null;
+  const typed = () => Number(inp.value.replace(spec.unit || "", "").trim() || NaN);
+  const valid = (n: number) => Number.isFinite(n) && (spec.soft || (n >= bounds[0] && n <= bounds[1]));
+  const setDraft = (text: string | null) => {
+    if (!draft) return;
+    raw = text;
+    const next = text ?? digits();
+    if (inp.value !== next) inp.value = next;
+    if (text === null) inp.removeAttribute("aria-invalid");
+    else inp.setAttribute("aria-invalid", String(!valid(typed())));
+  };
+  const noteDraft = (text: string | null) => {
+    if (!draft) return;
+    setDraft(text);
+    draft(text === null ? null : { text, valid: valid(typed()) });
+  };
+  if (draft) inp.addEventListener("input", () => noteDraft(inp.value));
   const set = (val: number | string, fire = true) => {
     val = +val;
     if (!Number.isFinite(val)) return;
     value = fit(val);
-    inp.value = digits();
+    if (raw !== null && fire) noteDraft(null);
+    if (raw === null) inp.value = digits();
     if (fire && onChange) onChange(value);
   };
   // Typed text is read strictly as a whole number, as the slider's editor reads it (not parseFloat, which takes "1,000"
   // as 1 and "12abc" as 12); the field's unit may be typed along. NaN for anything else.
-  const typed = () => Number(inp.value.replace(spec.unit || "", "").trim() || NaN);
   // Only a readable number that lands on a new value commits; otherwise the field shows the kept value again and fires
   // nothing.
   inp.addEventListener("change", () => {
     const n = typed();
+    if (draft && raw !== null && !valid(n)) return;
     if (Number.isFinite(n) && fit(n) !== value) set(n);
+    else if (raw !== null) noteDraft(null);
     else inp.value = digits();
   });
-  escapeReverts(inp, digits);
+  if (draft) {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && raw !== null) {
+        e.preventDefault();
+        e.stopPropagation();
+        noteDraft(null);
+      }
+    });
+  } else escapeReverts(inp, digits);
   // ↑/↓ step off the half-typed value (a typed "4" then ↑ reads 5), the keyboard twin of the scrub.
   inp.addEventListener("keydown", (e) => {
     if (e.key === "Enter") return inp.blur();
@@ -385,8 +424,9 @@ function numField(spec: NumSpec, onChange?: (v: number) => void): NumField {
     () => value,
     set,
     () => inp.value,
+    spec.interaction?.gesture,
   );
-  return { el: root, set: (val: number | string) => set(val, false), get: () => value, range: [lo, hi] };
+  return { el: root, set: (val: number | string) => set(val, false), setDraft, get: () => value, range: [lo, hi] };
 }
 
 // ── Number — numField in its row chrome. ──

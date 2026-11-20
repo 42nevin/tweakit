@@ -257,6 +257,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // reads as keyboard).
     track.focus({ focusVisible: false });
     press = { id: e.pointerId, x: e.clientX, y: e.clientY, v: value };
+    meta.interaction?.gesture?.("start");
     try {
       (e.target as Element).setPointerCapture(e.pointerId);
     } catch {}
@@ -315,6 +316,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       track.classList.remove("is-active", "is-dragging");
     }
     rubberRelease(track);
+    meta.interaction?.gesture?.("end");
   };
   track.addEventListener("pointerup", up);
   track.addEventListener("pointercancel", (e) => up(e, true));
@@ -361,7 +363,9 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   // The inline editor, reached from the armed readout's click or Enter on the focused track. Enter
   // commits and Escape cancels, both returning focus to the track; a blur commits and leaves focus where the user sent
   // it.
-  const openEditor = () => {
+  const draft = meta.interaction?.draft;
+  let restoreDraft: ((text: string | null) => void) | null = null;
+  const openEditor = (focus = true) => {
     if (valueEl.classList.contains("is-editing")) return;
     const input = el("input", "twk-slider-input");
     input.type = "text";
@@ -374,31 +378,62 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     input.style.width = opened.length + 1 + "ch";
     valueEl.classList.add("is-editing");
     valueEl.replaceWith(input);
-    input.focus();
-    input.select();
+    if (focus) {
+      input.focus();
+      input.select();
+    }
     const restore = () => {
+      input.removeEventListener("blur", commit);
       input.replaceWith(valueEl);
+      restoreDraft = null;
       valueEl.classList.remove("is-editing", "is-editable");
     };
     // Typed text is read by `parse`, or else strictly as a whole number (not parseFloat, which reads
     // "1,000" as 1). Only a finite number commits, and never text left as it opened: a format coarser
     // than the step would move the value just by opening the editor.
+    const typed = (t: string) => {
+      try {
+        return parse ? parse(t) : Number(t.replace(unit, "").trim() || NaN);
+      } catch {
+        return NaN;
+      }
+    };
+    const valid = (p: number) => Number.isFinite(p) && (meta.soft || (p >= min && p <= max));
+    let raw: string | null = null;
+    const reflect = (text: string) => {
+      raw = text;
+      if (input.value !== text) input.value = text;
+      const ok = valid(typed(text));
+      input.setAttribute("aria-invalid", String(!ok));
+      return ok;
+    };
     const commit = () => {
-      const t = input.value;
-      let p = NaN;
-      if (t !== opened)
-        try {
-          p = parse ? parse(t) : Number(t.replace(unit, "").trim() || NaN);
-        } catch {}
+      const t = input.value,
+        p = t !== opened || raw !== null ? typed(t) : NaN;
+      if (draft && raw !== null && !valid(p)) return false;
+      if (raw !== null) draft?.(null);
       if (Number.isFinite(p)) set(meta.soft ? p : clamp(p, min, max));
       restore();
+      return true;
     };
+    if (draft) {
+      restoreDraft = (text) => {
+        if (text === null) {
+          if (raw !== null) restore();
+        } else reflect(text);
+      };
+      input.addEventListener("input", () => {
+        const text = input.value;
+        draft({ text, valid: reflect(text) });
+      });
+    }
     input.addEventListener("pointerdown", (e) => e.stopPropagation());
     input.addEventListener("blur", commit);
     // Focus moves to the track BEFORE the input leaves the DOM (blur-commit unhooked so it doesn't commit
     // twice): removing a focused node first lands focus on <body>, and a focus() in the same task was dropped.
     input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        if (draft && raw !== null && !valid(typed(raw))) return;
         input.removeEventListener("blur", commit);
         track.focus();
         commit();
@@ -408,6 +443,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
         e.stopPropagation();
         input.removeEventListener("blur", commit);
         track.focus();
+        if (raw !== null) draft?.(null);
         restore();
       }
     });
@@ -416,7 +452,17 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     if (valueEl.classList.contains("is-editable")) openEditor();
   });
 
-  return { el: wrap, set: (v: number | string) => set(v, false), get: () => q(value), range: [min, max] };
+  return {
+    el: wrap,
+    set: (v: number | string) => set(v, false),
+    setDraft: (text) => {
+      if (!draft) return;
+      if (text !== null && !restoreDraft) openEditor(false);
+      restoreDraft?.(text);
+    },
+    get: () => q(value),
+    range: [min, max],
+  };
 }
 
 function createToggle(meta: Meta, onChange: OnChange): Control {

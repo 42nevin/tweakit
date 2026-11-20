@@ -31,6 +31,7 @@ type Built<E extends Element> = E & Stringifying;
 /** The labeled numeric field's spec (numField). */
 // unit: muted suffix, also in the accessible name
 interface NumSpec {
+  interaction?: Meta["interaction"];
   label: string;
   value?: unknown;
   min?: unknown;
@@ -43,6 +44,7 @@ interface NumSpec {
 }
 /** The numeric field's handle: set() coerces and fits, get() reads the fitted number. */
 interface NumField {
+  setDraft?(text: string | null): void;
   el: HTMLDivElement;
   set(v: number | string): void;
   get(): number;

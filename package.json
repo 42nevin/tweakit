@@ -4,7 +4,7 @@
   "type": "module",
   "main": "./dist/tweaks/core.js",
   "types": "./dist/types/tweaks/core.d.ts",
-  "description": "A dependency-free, code-split real-time parameter panel — sliders, toggles, a wide-gamut OKLCH color picker, curve editors and more, from a plain schema.",
+  "description": "A dependency-free, code-split real-time parameter panel \u2014 sliders, toggles, a wide-gamut OKLCH color picker, curve editors and more, from a plain schema.",
   "license": "MIT",
   "author": "Ryan Kiley",
   "repository": {
@@ -43,7 +43,7 @@
       "default": "./dist/tweaks/core.js"
     },
     "./single": {
-      "types": "./dist/types/tweaks/core.d.ts",
+      "types": "./dist/types/tweaks/single.d.ts",
       "import": "./dist/tweaks.js",
       "default": "./dist/tweaks.js"
     },
@@ -61,7 +61,12 @@
       "types": "./dist/tweaks.css.d.ts",
       "default": "./dist/tweaks.css"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./inspector": {
+      "types": "./dist/types/inspector.d.ts",
+      "import": "./dist/inspector.js",
+      "default": "./dist/inspector.js"
+    }
   },
   "sideEffects": [
     "./dist/tweaks.css",
@@ -78,7 +83,9 @@
     "dist/tweaks.css.d.ts",
     "dist/types",
     "src",
-    "THIRD-PARTY-NOTICES.md"
+    "THIRD-PARTY-NOTICES.md",
+    "dist/inspector.js",
+    "dist/inspector.js.map"
   ],
   "devDependencies": {
     "esbuild": "^0.28.0",

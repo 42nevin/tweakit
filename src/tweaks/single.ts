@@ -20,3 +20,5 @@ import "./controls/point.js";
 import "./controls/plot.js";
 
 export * from "./core.js";
+export { mountInspector } from "../inspector.js";
+export type * from "../inspector.js";

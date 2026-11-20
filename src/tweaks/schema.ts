@@ -31,6 +31,10 @@ interface TabPage {
 /** The normalized control meta — ONE shape for every control type. The per-type fields are
  *  optional; type / key / label are always set. `value` is the authored default in the control's own shape. */
 interface Meta {
+  interaction?: {
+    draft?: (value: import("./types.js").NumericDraft | null) => void;
+    gesture?: (phase: import("./types.js").ControlGesturePhase) => void;
+  };
   type: string;
   key: string;
   label: string;

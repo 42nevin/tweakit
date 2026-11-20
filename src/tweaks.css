@@ -992,3 +992,30 @@
   /* …but their focus ring is still the system's: opting out would leave it in the accent, which may match the flattened background. */
   .twk-gradient-stop:focus-visible, .twk-wg-area:focus-visible, .twk-wg-hue:focus-visible, .twk-wg-alpha:focus-visible { outline-color: Highlight; }
 }
+
+/* The inspector is inline, using the same palette and control surfaces. */
+.twk-panel.twk-inspector {
+  width: 100%;
+  border-radius: var(--twk-radius);
+}
+.twk-inspector-title { font: inherit; font-weight: 650; margin: 0; padding: 8px; }
+.twk-inspector-group { padding: 8px; border-top: 1px solid var(--twk-border); min-width: 0; }
+.twk-inspector-heading { margin: 0 0 6px; font: inherit; font-weight: 650; color: var(--twk-text-section); }
+.twk-inspector-row { min-width: 0; overflow-wrap: anywhere; }
+.twk-inspector-row:has(> .twk-inspector-term) {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 8px; padding-block: 3px;
+}
+.twk-inspector-term { color: var(--twk-text-secondary); }
+.twk-inspector-action {
+  appearance: none; font: inherit; color: var(--twk-text-primary); background: var(--twk-surface);
+  border: 1px solid var(--twk-border); border-radius: var(--twk-radius);
+  min-height: var(--twk-row-height); padding-inline: 8px; margin: 2px 4px 2px 0;
+  text-align: start; white-space: normal; overflow-wrap: anywhere;
+}
+@media (hover: hover) and (pointer: fine) {
+  .twk-inspector-action:hover:not(:disabled) { background: var(--twk-surface-hover); }
+}
+.twk-inspector-action[aria-pressed="true"] { background: var(--twk-surface-active); }
+.twk-inspector-action:focus-visible { outline: 2px solid var(--twk-accent, var(--twk-text-focus)); }
+.twk-inspector-action:disabled { color: var(--twk-text-tertiary); }
+.twk-inspector [aria-invalid="true"] { outline-color: var(--twk-danger); }
