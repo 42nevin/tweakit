@@ -450,7 +450,12 @@ const decimalStep = (v: unknown) => {
 // lazy chunk, so the basic panel carries none of it.
 registerControl("number", (meta: Meta, onChange?: OnChange) =>
   numField(
-    { ...meta, step: meta.step ?? Math.min(1, decimalStep(meta.value), decimalStep(meta.min)), row: true },
+    {
+      ...meta,
+      snap: meta.snap !== false,
+      step: meta.step ?? Math.min(1, decimalStep(meta.value), decimalStep(meta.min)),
+      row: true,
+    },
     onChange,
   ),
 );

@@ -26,7 +26,10 @@ export const examples = [
       <p>Set <code>snap: false</code> on a slider or number to keep exact values, including
       values between steps and computed floating-point values. The bounds stay exactly as
       authored, and <code>step</code> remains the keyboard and scrub increment. Typed and
-      programmatic writes keep their precision; the default still uses the step grid.</p>`,
+      programmatic writes keep their precision; the default still uses the step grid.</p>
+      <p>On a slider, <code>snap: "interaction"</code> applies the step grid only to clicks, drags, and
+      keyboard adjustments. The inline text editor and programmatic writes still accept exact values
+      within the authored bounds. Use <code>format</code> for a shorter readout without shortening the edit text.</p>`,
     target: `<div class="num-tile"></div>`,
     css: `
       .num-tile { width: 132px; height: 132px; background: #7C5CFF;

@@ -47,18 +47,26 @@ import type { Control, Option } from "../types.js";
 const CLICK_THRESHOLD = 3;
 function createSlider(meta: Meta, onChange: OnChange): Control {
   const label = meta.label;
-  let { min, max, step } = normalizeRange(meta.min, meta.max, meta.step, [+(meta.value as number)], label);
+  let { min, max, step } = normalizeRange(
+    meta.min,
+    meta.max,
+    meta.step,
+    [+(meta.value as number)],
+    label,
+    meta.snap === "interaction",
+  );
   // A hard slider's range is its reachable grid: the ends move in to the first/last grid point,
   // so notches, hashmarks, keyboard ends, aria bounds and the emitted value agree. A soft slider keeps its authored
   // range.
-  if (!meta.soft && meta.snap !== false) [min, max] = gridEnds(min, max, step);
-  const snap = meta.snap !== false && (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
+  const snapValue = meta.snap !== false && meta.snap !== "interaction";
+  if (!meta.soft && snapValue) [min, max] = gridEnds(min, max, step);
+  const snap = snapValue && (max - min) / step <= 6; // past ~6 stops, snapping at every step felt notchy
   const seed = Number.isFinite(+meta.value) ? +meta.value : min; // a non-finite seed → min
   // A soft slider keeps an out-of-range default, as set() does; pull is the detent's tension offset read by render().
   let value = meta.soft && !snap ? seed : clamp(seed, min, max),
     pull = 0;
   const decimals = stepPrecision(step);
-  const digits = (v: number) => (meta.snap === false ? String(v) : v.toFixed(decimals));
+  const digits = (v: number) => (snapValue ? v.toFixed(decimals) : String(v));
 
   const wrap = el("div", "twk-slider-wrap");
   const track = el("div", "twk-slider");
@@ -94,7 +102,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
   track.setAttribute("aria-valuemin", String(min));
   track.setAttribute("aria-valuemax", String(max));
 
-  const q = (v: number) => (meta.snap === false ? v : roundToStep(v, min, step)); // min/max sit on the grid, so a clamped value rounds inside
+  const q = (v: number) => (snapValue ? roundToStep(v, min, step) : v); // min/max sit on the grid, so a clamped value rounds inside
   const marks = snap
     ? Array.from(
         { length: Math.max(0, Math.round((max - min) / step) - 1) },
@@ -167,6 +175,16 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     value = snap ? clamp(q(v), min, max) : meta.soft ? v : clamp(v, min, max);
     render();
     if (fire) onChange(q(value));
+  };
+
+  const interactionBounds = meta.snap === "interaction" ? gridEnds(min, max, step) : null;
+  const setFromTrack = (raw: number) => {
+    if (!interactionBounds) return set(raw);
+    const [lo, hi] = interactionBounds;
+    const next = clamp(roundToStep(raw, min, step), lo, hi);
+    // A range narrower than one step may have no legal grid point. Only precise input can edit it.
+    if (next < min || next > max || (lo === hi && roundToStep(next, min, step) !== next)) return;
+    if (next !== value) set(next);
   };
 
   // ── Spring-commit detent (snap sliders) ──
@@ -269,7 +287,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
     // 1:1.
     glide(!snap);
     if (snap) springStart(e.clientX);
-    else set(valFromX(e.clientX));
+    else setFromTrack(valFromX(e.clientX));
   });
   track.addEventListener("pointermove", (e) => {
     if (!press || e.pointerId !== press.id) return;
@@ -297,7 +315,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
           press.fine = null;
           raw = valFromX(e.clientX);
         }
-        set(raw);
+        setFromTrack(raw);
       }
     }
   });
@@ -341,7 +359,7 @@ function createSlider(meta: Meta, onChange: OnChange): Control {
       pull = 0;
       track.classList.remove("is-active");
     }
-    set(clamp(nv, min, max));
+    setFromTrack(clamp(nv, min, max));
   });
 
   // value: hover 800ms → editable; click → inline input

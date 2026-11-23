@@ -181,7 +181,14 @@ const notice = (kind: string, ...args: unknown[]) => {
 // Normalize a slider-style range: an absent or non-finite bound derives from the values, an inverted pair swaps (with a
 // note, given the control's label), and only then does an absent or unusable step infer, so a NaN min can't hand it a
 // NaN span. Every range source funnels here.
-const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals: number[] = [], label?: string) => {
+const normalizeRange = (
+  rawMin: unknown,
+  rawMax: unknown,
+  rawStep: unknown,
+  vals: number[] = [],
+  label?: string,
+  keepOversizedStep = false,
+) => {
   const given = (n: unknown) => n != null && n !== "" && Number.isFinite(+n!);
   vals = vals.filter(Number.isFinite);
   const d = derivedRange(...vals);
@@ -204,7 +211,8 @@ const normalizeRange = (rawMin: unknown, rawMax: unknown, rawStep: unknown, vals
     min = max;
     max = t;
   }
-  if (!(step > 0) || step > max - min) step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
+  if (!Number.isFinite(step) || !(step > 0) || (!keepOversizedStep && step > max - min))
+    step = given(rawMin) || given(rawMax) ? inferStep(min, max, ...vals) : d.step;
   return { min, max, step };
 };
 // One keyboard model for every 1-D range surface: arrows step (⇧ = ×10), Home/End snap to

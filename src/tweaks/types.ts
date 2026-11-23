@@ -129,8 +129,9 @@ export type SchemaObject =
       min?: number;
       max?: number;
       step?: number;
-      /** False keeps exact values; step remains the keyboard and scrub increment. */
-      snap?: boolean;
+      /** False preserves exact values. "interaction" snaps only pointer and keyboard edits to step;
+       * seeds, external updates and the inline text editor keep their precision. */
+      snap?: boolean | "interaction";
       soft?: boolean;
       unit?: string;
       /** Draws the readout from the value ("7:30 AM" for minutes of the day), in place of its

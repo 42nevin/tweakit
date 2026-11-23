@@ -49,7 +49,7 @@ interface Meta {
   min?: number;
   max?: number;
   step?: number;
-  snap?: boolean;
+  snap?: boolean | "interaction";
   soft?: boolean;
   unit?: string;
   corners?: boolean;

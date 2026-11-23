@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import "./_setup-dom.mjs";
-import { loadSingle, key, warnings } from "./_helpers.mjs";
+import { loadSingle, key, ptr, warnings } from "./_helpers.mjs";
 
 const { tweaks, enhance } = await loadSingle();
 const f32 = Math.fround;
@@ -148,4 +148,144 @@ test("markup data-snap=false reaches the same control as the schema option", asy
   );
   assert.equal(host.querySelector(".twk-num").value, "13.37", "the number field keeps its exact seed");
   host.remove();
+});
+
+/* `snap: "interaction"` on a slider: pointer track/drag and keyboard use the authored step
+ * grid, while initialization, typed text, silent writes, a no-op edit and the authored bounds
+ * keep the exact value. A kit that reads any non-false `snap` as a full snap fails the exact
+ * rows; one that reads it as `snap: false` fails the grid rows. */
+const interaction = (extra = {}) => ({
+  type: "slider",
+  value: 576.5,
+  min: 1,
+  max: 2000,
+  step: 1,
+  snap: "interaction",
+  ...extra,
+});
+const sliderTrack = (p) => p.el.querySelector(".twk-slider");
+const sliderReadout = (p) => p.el.querySelector(".twk-slider-value").textContent;
+const onGrid = (v, min, step) => Math.abs(Math.round((v - min) / step) - (v - min) / step) < 1e-9;
+const enter = (target) => target.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+test("snap:interaction keeps the seed, typed text, silent writes and authored bounds exact", async () => {
+  const seed = tweaks("InteractionSeed", { v: interaction() });
+  assert.equal(seed.params.v, 576.5, "the authored seed is not moved onto the grid");
+  assert.equal(sliderReadout(seed), "576.5", "the readout keeps the exact seed");
+  assert.equal(sliderTrack(seed).getAttribute("aria-valuenow"), "576.5");
+  assert.deepEqual(
+    [sliderTrack(seed).getAttribute("aria-valuemin"), sliderTrack(seed).getAttribute("aria-valuemax")],
+    ["1", "2000"],
+    "authored bounds that already sit on the grid stay as written",
+  );
+  seed.destroy();
+
+  const text = tweaks("InteractionText", { v: interaction({ value: 0.437, min: 0, max: 1, step: 0.01 }) });
+  document.body.append(text.el);
+  const open = () => {
+    enter(sliderTrack(text));
+    return sliderTrack(text).querySelector(".twk-slider-input");
+  };
+  let input = open();
+  assert.equal(input.value, "0.437", "the editor opens on the exact seed, not the grid");
+  enter(input);
+  assert.equal(text.params.v, 0.437, "an untyped Enter leaves the exact value");
+  input = open();
+  input.value = "0.433";
+  enter(input);
+  assert.equal(text.params.v, 0.433, "a typed off-grid value commits exactly");
+  assert.equal(sliderReadout(text), "0.433");
+  text.destroy();
+
+  const silent = tweaks("InteractionSilent", { v: interaction({ value: 0, min: 0, max: 1, step: 0.01 }) });
+  await silent.ready;
+  const heard = [];
+  silent.on((_, changed) => heard.push(changed));
+  silent.setMany({ v: 0.437 }, { silent: true });
+  assert.equal(silent.params.v, 0.437, "a silent batch writes the exact number");
+  assert.deepEqual(heard, [], "a silent batch does not echo");
+  silent.destroy();
+
+  const bounds = tweaks("InteractionBounds", { v: interaction({ value: 4.75, min: 0.25, max: 4.75, step: 1 }) });
+  assert.equal(bounds.params.v, 4.75, "the authored max seed stays exact");
+  assert.deepEqual(
+    [sliderTrack(bounds).getAttribute("aria-valuemin"), sliderTrack(bounds).getAttribute("aria-valuemax")],
+    ["0.25", "4.75"],
+    "authored bounds are not trimmed to the grid",
+  );
+  key(sliderTrack(bounds), { key: "End" });
+  assert.equal(bounds.params.v, 4, "the end chooses the nearest reachable grid point, not the authored max");
+  assert.ok(onGrid(bounds.params.v, 0, 1), "the reachable grid is the step grid, anchored as the value is");
+  bounds.destroy();
+});
+
+test("snap:interaction pointer and keyboard use the authored step grid", () => {
+  const keys = tweaks("InteractionKeys", { v: interaction() });
+  key(sliderTrack(keys), { key: "ArrowRight" });
+  assert.ok(onGrid(keys.params.v, 1, 1), `ArrowRight lands on the step-1 grid: ${keys.params.v}`);
+  assert.ok(keys.params.v > 576.5, "the step moved up from the exact seed");
+  key(sliderTrack(keys), { key: "ArrowLeft" });
+  assert.ok(onGrid(keys.params.v, 1, 1), `ArrowLeft lands on the step-1 grid: ${keys.params.v}`);
+  keys.destroy();
+
+  const press = tweaks("InteractionPress", { v: interaction({ value: 0.437, min: 0, max: 1, step: 0.01 }) });
+  document.body.append(press.el);
+  const track = sliderTrack(press);
+  track.setPointerCapture = () => {};
+  track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 120, bottom: 32, width: 120, height: 32 });
+  track.dispatchEvent(ptr("pointerdown", { clientX: 40 }));
+  track.dispatchEvent(ptr("pointerup", { clientX: 40, buttons: 0 }));
+  assert.ok(onGrid(press.params.v, 0, 0.01), `a press at one third lands on the 0.01 grid: ${press.params.v}`);
+  assert.notEqual(press.params.v, 0.437, "the press moved off the exact seed");
+  press.destroy();
+});
+
+test("snap:interaction narrow ranges keep the exact seed and a cancelled press restores it", () => {
+  // An authored step wider than the range has no reachable grid point. The range must keep the
+  // authored step, not infer a finer one, and interaction must neither move nor emit.
+  const narrow = tweaks("InteractionNarrow", {
+    v: { type: "slider", value: 0.037, min: 0.021, max: 0.049, step: 0.1, snap: "interaction" },
+  });
+  document.body.append(narrow.el);
+  assert.equal(narrow.params.v, 0.037, "the off-grid seed stays exact even with no reachable grid point");
+  const track = sliderTrack(narrow);
+  track.setPointerCapture = () => {};
+  track.parentNode.getBoundingClientRect = () => ({ left: 0, top: 0, right: 120, bottom: 32, width: 120, height: 32 });
+  const heard = [];
+  narrow.on((_, changed) => heard.push(changed));
+  track.dispatchEvent(ptr("pointerdown", { clientX: 60 }));
+  track.dispatchEvent(ptr("pointerup", { clientX: 60, buttons: 0 }));
+  assert.equal(narrow.params.v, 0.037, "a press with no reachable grid point preserves the seed");
+  assert.deepEqual(heard, [], "a press with no reachable grid point emits nothing");
+  key(track, { key: "End" });
+  assert.equal(narrow.params.v, 0.037, "End with no reachable grid point preserves the seed");
+  assert.deepEqual(heard, [], "End with no reachable grid point emits nothing");
+  enter(track);
+  const field = track.querySelector(".twk-slider-input");
+  field.value = "0.038";
+  enter(field);
+  assert.equal(narrow.params.v, 0.038, "precise text stays valid without a reachable grid point");
+  narrow.destroy();
+
+  // A cancelled press returns the exact off-grid seed, not a notch.
+  const cancel = tweaks("InteractionCancel", {
+    v: { type: "slider", value: 3.5, min: 0, max: 5, step: 1, snap: "interaction" },
+  });
+  document.body.append(cancel.el);
+  const cancelTrack = sliderTrack(cancel);
+  cancelTrack.setPointerCapture = () => {};
+  cancelTrack.parentNode.getBoundingClientRect = () => ({
+    left: 0,
+    top: 0,
+    right: 120,
+    bottom: 32,
+    width: 120,
+    height: 32,
+  });
+  assert.equal(cancel.params.v, 3.5, "the off-grid seed stays exact");
+  cancelTrack.dispatchEvent(ptr("pointerdown", { clientX: 108 }));
+  assert.equal(cancel.params.v, 5, "the press really moved the seed before it was cancelled");
+  cancelTrack.dispatchEvent(ptr("pointercancel", { clientX: 108 }));
+  assert.equal(cancel.params.v, 3.5, "a cancelled press restores the exact seed");
+  cancel.destroy();
 });

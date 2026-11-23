@@ -79,7 +79,7 @@ Every `{ type }` form also takes `label`, `hint` (a tooltip), `render: (get) => 
 
 | `type` | Options | `params` value |
 | --- | --- | --- |
-| `slider` | `value, min, max, step, unit, soft, format, parse` | number |
+| `slider` | `value, min, max, step, snap, unit, soft, format, parse` | number |
 | `number` | `value, min, max, step, unit, soft` | number |
 | `interval` | `value: [lo, hi], min, max, step` | `[lo, hi]` |
 | `sides` | `value` (one number, a CSS-order array, or `"8px 16px"`, whose unit is used when `unit` isn't given), `unit, step, min, max, corners`; only corners floor at 0 unless `min` says otherwise | `{ top, right, bottom, left, css }`; `css` is ready for `padding`, `margin` or `border-radius` |
